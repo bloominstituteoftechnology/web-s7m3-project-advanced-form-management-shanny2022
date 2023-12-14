@@ -1,104 +1,129 @@
 // ❗ The ✨ TASKS inside this component are NOT IN ORDER.
 // ❗ Check the README for the appropriate sequence to follow.
-import React from 'react'
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import * as yup from 'yup';
 
-const e = { // This is a dictionary of validation error messages.
-  // username
-  usernameRequired: 'username is required',
-  usernameMin: 'username must be at least 3 characters',
-  usernameMax: 'username cannot exceed 20 characters',
-  // favLanguage
-  favLanguageRequired: 'favLanguage is required',
-  favLanguageOptions: 'favLanguage must be either javascript or rust',
-  // favFood
-  favFoodRequired: 'favFood is required',
-  favFoodOptions: 'favFood must be either broccoli, spaghetti or pizza',
-  // agreement
-  agreementRequired: 'agreement is required',
-  agreementOptions: 'agreement must be accepted',
-}
+// Define validation schema
+const formSchema = yup.object().shape({
+  username: yup.string().required("Username is required"),
+  favLanguage: yup.string().required("Favorite language is required"),
+  favFood: yup.string().required("Favorite food is required"),
+  agreement: yup.boolean().oneOf([true], "You must agree to the terms"),
+});
 
-// ✨ TASK: BUILD YOUR FORM SCHEMA HERE
-// The schema should use the error messages contained in the object above.
+function App() {
+  const [formState, setFormState] = useState({
+    username: '',
+    favLanguage: '',
+    favFood: '',
+    agreement: false,
+  });
 
-export default function App() {
-  // ✨ TASK: BUILD YOUR STATES HERE
-  // You will need states to track (1) the form, (2) the validation errors,
-  // (3) whether submit is disabled, (4) the success message from the server,
-  // and (5) the failure message from the server.
+  const [errors, setErrors] = useState({
+    username: '',
+    favLanguage: '',
+    favFood: '',
+    agreement: '',
+  });
 
-  // ✨ TASK: BUILD YOUR EFFECT HERE
-  // Whenever the state of the form changes, validate it against the schema
-  // and update the state that tracks whether the form is submittable.
+  const [buttonDisabled, setButtonDisabled] = useState(true);
 
-  const onChange = evt => {
-    // ✨ TASK: IMPLEMENT YOUR INPUT CHANGE HANDLER
-    // The logic is a bit different for the checkbox, but you can check
-    // whether the type of event target is "checkbox" and act accordingly.
-    // At every change, you should validate the updated value and send the validation
-    // error to the state where we track frontend validation errors.
-  }
+  const [serverMessage, setServerMessage] = useState('');
 
-  const onSubmit = evt => {
-    // ✨ TASK: IMPLEMENT YOUR SUBMIT HANDLER
-    // Lots to do here! Prevent default behavior, disable the form to avoid
-    // double submits, and POST the form data to the endpoint. On success, reset
-    // the form. You must put the success and failure messages from the server
-    // in the states you have reserved for them, and the form
-    // should be re-enabled.
-  }
+  useEffect(() => {
+    formSchema.isValid(formState).then(valid => {
+      setButtonDisabled(!valid);
+    });
+  }, [formState]);
+
+  const validateChange = e => {
+    yup
+      .reach(formSchema, e.target.name)
+      .validate(e.target.value)
+      .then(() => {
+        setErrors({ ...errors, [e.target.name]: "" });
+      })
+      .catch(err => {
+        setErrors({ ...errors, [e.target.name]: err.errors[0] });
+      });
+  };
+  
+  const inputChange = e => {
+    e.persist();
+    const newFormData = {
+      ...formState,
+      [e.target.name]: e.target.type === 'checkbox' ? e.target.checked : e.target.value
+    };
+
+    validateChange(e);
+    setFormState(newFormData);
+  };
+
+  const formSubmit = e => {
+    e.preventDefault();
+    axios
+      .post('https://your-api-endpoint.com', formState)
+      .then(response => {
+        setServerMessage(response.data);
+        setFormState({
+          username: '',
+          favLanguage: '',
+          favFood: '',
+          agreement: false,
+        });
+      })
+      .catch(err => {
+        setServerMessage(err.response.data);
+      });
+  };
 
   return (
-    <div> {/* TASK: COMPLETE THE JSX */}
-      <h2>Create an Account</h2>
-      <form>
-        <h4 className="success">Success! Welcome, new user!</h4>
-        <h4 className="error">Sorry! Username is taken</h4>
-
-        <div className="inputGroup">
-          <label htmlFor="username">Username:</label>
-          <input id="username" name="username" type="text" placeholder="Type Username" />
-          <div className="validation">username is required</div>
-        </div>
-
-        <div className="inputGroup">
-          <fieldset>
-            <legend>Favorite Language:</legend>
-            <label>
-              <input type="radio" name="favLanguage" value="javascript" />
-              JavaScript
-            </label>
-            <label>
-              <input type="radio" name="favLanguage" value="rust" />
-              Rust
-            </label>
-          </fieldset>
-          <div className="validation">favLanguage is required</div>
-        </div>
-
-        <div className="inputGroup">
-          <label htmlFor="favFood">Favorite Food:</label>
-          <select id="favFood" name="favFood">
-            <option value="">-- Select Favorite Food --</option>
-            <option value="pizza">Pizza</option>
-            <option value="spaghetti">Spaghetti</option>
-            <option value="broccoli">Broccoli</option>
-          </select>
-          <div className="validation">favFood is required</div>
-        </div>
-
-        <div className="inputGroup">
-          <label>
-            <input id="agreement" type="checkbox" name="agreement" />
-            Agree to our terms
-          </label>
-          <div className="validation">agreement is required</div>
-        </div>
-
-        <div>
-          <input type="submit" disabled={false} />
-        </div>
-      </form>
-    </div>
-  )
+    <form onSubmit={formSubmit}>
+      <label>
+        Username:
+        <input
+          type="text"
+          name="username"
+          value={formState.username}
+          onChange={inputChange}
+        />
+        {errors.username.length > 0 ? <p className="error">{errors.username}</p> : null}
+      </label>
+      <label>
+        Favorite Language:
+        <input
+          type="text"
+          name="favLanguage"
+          value={formState.favLanguage}
+          onChange={inputChange}
+        />
+        {errors.favLanguage.length > 0 ? <p className="error">{errors.favLanguage}</p> : null}
+      </label>
+      <label>
+        Favorite Food:
+        <input
+          type="text"
+          name="favFood"
+          value={formState.favFood}
+          onChange={inputChange}
+        />
+        {errors.favFood.length > 0 ? <p className="error">{errors.favFood}</p> : null}
+      </label>
+      <label>
+        Agreement:
+        <input
+          type="checkbox"
+          name="agreement"
+          checked={formState.agreement}
+          onChange={inputChange}
+        />
+        {errors.agreement.length > 0 ? <p className="error">{errors.agreement}</p> : null}
+      </label>
+      {serverMessage && <p>{serverMessage}</p>}
+      <button disabled={buttonDisabled}>Submit</button>
+    </form>
+  );
 }
+
+export default App;
